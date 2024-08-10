@@ -1,0 +1,97 @@
+<style>
+  td {
+    font-size: 30px;
+    text-align: center; /* Center horizontally */
+    vertical-align: middle; /* Center vertically */
+    font-weight: 300;
+  }
+  th {
+    align-content: center;
+  }
+  th p {
+    margin: unset;
+  }
+  #answersheet {
+    table-layout: fixed;
+  }
+  
+  #answersheet tr:not(:first-child):hover,
+  .teachersheet tr:not(:first-child):hover {
+    background-color: green !important;
+    /* Replace 'green' with your desired color */
+  }
+
+  #answersheet th:first-child {
+    width: 20% !important;
+    white-space: nowrap;
+    text-align: center;
+  }
+
+  button {
+    width: 100%;
+    border-radius: 0px !important;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    margin-bottom: 50px;
+  }
+
+  .hide {
+    display: none !important;
+  }
+
+  p {
+    cursor: default;
+  }
+
+  .clickable {
+    cursor: pointer;
+  }
+
+  .selected {
+    background-color: #1679AB!important; /* Correct format for a hex color code */
+    color: white!important;
+  }
+
+  .correct {
+    background-color: #399918!important; /* Correct format for a hex color code */
+  }
+
+  .incorrect {
+    background-color: #FF7777!important; /* Correct format for a hex color code */
+  }
+  .toggle-btn {
+    padding: 5px 10px;
+    margin: 2px;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    background-color: #f0f0f0;
+  }
+  .toggle-btn.active {
+    background-color: #007bff;
+    color: white;
+  }
+  #scoreDisplay {
+    position: sticky;
+    top: 20px;
+    z-index: 1000;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin: 20px auto; /* Add some margin to prevent it from sticking immediately */
+  }
+
+  #scoreDisplay .alert {
+    margin-bottom: 0;
+  }
+
+  @media (max-width: 768px) {
+    #scoreDisplay {
+      width: 95%;
+    }
+  }
+  </style>

@@ -1,0 +1,471 @@
+<script>
+  /*
+
+  ==========================================================. Main. ==========================================================
+
+  */
+  var template_answerMETA = [
+    {
+      "QuestionNo": 1,
+      "Answer": "①",
+      "Selected": "①",
+      "Score": 1,
+      "Correct": true,
+      "mode": "123"
+    },
+    {
+      "QuestionNo": 15,
+      "Answer": "Ⓐ",
+      "Selected": "Ⓓ",
+      "Score": 1,
+      "Correct": false,
+      "mode": "ABC"
+    },
+    {
+      "QuestionNo": 16,
+      "Answer": "sample",
+      "Selected": "sample",
+      "Score": 1,
+      "Correct": false,
+      "mode": "SAQ"
+    },
+  ];
+
+  var studentPage = document.getElementById("student-mode");
+  var teacherPage = document.getElementById("teacher-mode");
+  var loading = document.getElementById("loading");
+  
+function getTestAnswerMeta() {
+  google.script.run.withSuccessHandler(function(answerMeta) {
+    console.log('Received answer meta:', answerMeta);
+
+    var questionNumbers = answerMeta[0];
+    var answers = answerMeta[1];
+    var Score = answerMeta[2] ? answerMeta[2] : [];
+    var modes = answerMeta[3] ? answerMeta[3] : [];
+
+    var processedMeta = questionNumbers.map((questionNo, index) => {
+      return {
+        QuestionNo: parseInt(questionNo, 10), // Ensure QuestionNo is a number
+        Answer: answers[index],
+        Selected: '',
+        Score: Score[index] !== undefined ? Score[index] : 1,
+        Correct: false,
+        mode: modes[index] || determineMode(answers[index])
+      };
+    });
+    template_answerMETA = processedMeta;
+    console.log('Processed meta:', template_answerMETA);
+
+    document.getElementById('student-omrTable').innerHTML = tableRowGenerator(template_answerMETA);
+    document.getElementById('teacher-omrTable').innerHTML = tableRowGenerator(template_answerMETA);
+    loading = document.getElementById("loading");
+    loading.className = 'hide';
+  }).initiateTest("testName");
+}
+
+function determineMode(answer) {
+  if (answer.match(/[①②③④⑤]/)) return "123";
+  if (answer.match(/[ⒶⒷⒸⒹⒺ]/)) return "ABC";
+  return "SAQ";
+}
+
+
+  function switchToTeacherMode() {
+    loading.classList.remove('hide');
+    studentPage.style.display = "none";
+    teacherPage.style.display = "block";
+    setTimeout(() => {
+      // If template_answerMETA is empty, generate default rows
+      if (template_answerMETA.length === 0) {
+        generateTeacherRows(10, true); // Generate 10 rows by default
+      } else {
+        // Use existing template_answerMETA to generate rows
+        generateTeacherRows(template_answerMETA.length, false);
+      }
+      loading.classList.add('hide');
+    }, 100);
+  }
+
+  function leaveTeacherMode() {
+    var confirmed = confirm("Leave Setting Answers?");
+    if (confirmed) {
+      loading.classList.remove('hide');
+      teacherPage.style.display = "none";
+      studentPage.style.display = "block";
+    var scoreDisplay = document.getElementById('scoreDisplay');
+    if (scoreDisplay) {
+      scoreDisplay.remove();
+    }
+      getTestAnswerMeta();
+    }
+  }
+
+  function addClassOnClick(event) {
+    if (event.target.tagName === 'TD' && event.target.getAttribute('colspan') !== '5') {
+      event.target.classList.toggle('selected');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const questionNumberInput = document.querySelector('#teacher-mode input[type="number"]');
+    questionNumberInput.addEventListener('blur', function() {
+      generateTeacherRows(this.value);
+    });
+    getTestAnswerMeta();
+    // Function to add 'selected' class on click
+
+    // Attach event listener to the table
+    document.querySelector('table').addEventListener('click', addClassOnClick);
+  });
+
+  /*
+
+  ==========================================================. Student. ==========================================================
+
+  */
+  var omrRow_SAQ_template = (questionNumber, correct) => `
+    <tr class="SAQtemplate">
+      <th><p> ${questionNumber} </p></th>
+      <td colspan="5"><input></td>
+    </tr>
+  `;
+
+  var omrRow_ABC_template = (questionNumber, selectedAnswer, correct) => `
+    <tr class="ABCtemplate">
+      <th><p> ${questionNumber} </p></th>
+      <td class="clickable ${selectedAnswer === 'Ⓐ' ? 'selected' : ''}"> Ⓐ </td>
+      <td class="clickable ${selectedAnswer === 'Ⓑ' ? 'selected' : ''}"> Ⓑ </td>
+      <td class="clickable ${selectedAnswer === 'Ⓒ' ? 'selected' : ''}"> Ⓒ </td>
+      <td class="clickable ${selectedAnswer === 'Ⓓ' ? 'selected' : ''}"> Ⓓ </td>
+      <td class="clickable ${selectedAnswer === 'Ⓔ' ? 'selected' : ''}"> Ⓔ </td>
+    </tr>
+  `;
+
+  var omrRow_123_template = (questionNumber, selectedAnswer, correct) => `
+    <tr class="a123template">
+      <th><p> ${questionNumber} </p></th>
+      <td class="clickable ${selectedAnswer === '①' ? 'selected' : ''}"> ① </td>
+      <td class="clickable ${selectedAnswer === '②' ? 'selected' : ''}"> ② </td>
+      <td class="clickable ${selectedAnswer === '③' ? 'selected' : ''}"> ③ </td>
+      <td class="clickable ${selectedAnswer === '④' ? 'selected' : ''}"> ④ </td>
+      <td class="clickable ${selectedAnswer === '⑤' ? 'selected' : ''}"> ⑤ </td>
+    </tr>
+  `;
+
+function tableRowGenerator(answerMeta) { 
+  return answerMeta.map((answerMetaData) => {
+    var questionNumber = answerMetaData.QuestionNo;
+    var answer = answerMetaData.Answer;
+    var mode = answerMetaData.mode;
+    var template;
+    if (document.getElementById('teacher-mode').style.display !== 'none') {
+      // Teacher mode
+      switch(mode) {
+        case "123":
+          template = teacherRow_123_template(questionNumber, answer);
+          break;
+        case "ABC":
+          template = teacherRow_ABC_template(questionNumber, answer);
+          break;
+        default:
+          template = teacherRow_SAQ_template(questionNumber, answer);
+      }
+    } else {
+      // Student mode
+      switch(mode) {
+        case "123":
+          template = omrRow_123_template(questionNumber, answerMetaData.Selected, answerMetaData.Correct);
+          break;
+        case "ABC":
+          template = omrRow_ABC_template(questionNumber, answerMetaData.Selected, answerMetaData.Correct);
+          break;
+        default:
+          template = omrRow_SAQ_template(questionNumber, answerMetaData.Correct);
+      }
+    }
+    return template;
+  }).join('');
+}
+
+function correctSelected() {
+  let totalQuestions = template_answerMETA.length;
+  let correctAnswers = 0;
+
+  document.querySelectorAll('#student-omrTable tr').forEach((row, index) => {
+    let questionData = template_answerMETA[index];
+    let selectedAnswers = [];
+
+    if (row.classList.contains('SAQtemplate')) {
+      selectedAnswers = [row.querySelector('input').value.trim()];
+    } else {
+      selectedAnswers = Array.from(row.querySelectorAll('.selected'))
+                            .map(cell => cell.textContent.trim());
+    }
+
+    // Join selected answers without spaces
+    questionData.Selected = selectedAnswers.join('');
+    
+    // Convert correct answer string and selected answer string to sets
+    let correctSet = new Set(questionData.Answer.split(''));
+    let selectedSet = new Set(questionData.Selected.split(''));
+    
+    // Check if all selected answers are correct and all correct answers are selected
+    questionData.Correct = (selectedSet.size === correctSet.size &&
+                            [...selectedSet].every(ans => correctSet.has(ans)));
+
+    if (questionData.Correct) {
+      row.classList.add('correct');
+      row.classList.remove('incorrect');
+      correctAnswers++;
+    } else {
+      row.classList.add('incorrect');
+      row.classList.remove('correct');
+    }
+
+    // Highlight the correct answers and any incorrect selections
+    Array.from(row.cells).forEach(cell => {
+      if (correctSet.has(cell.textContent.trim())) {
+        cell.classList.add('correct-answer');
+      }
+      if (selectedSet.has(cell.textContent.trim()) && 
+          !correctSet.has(cell.textContent.trim())) {
+        cell.classList.add('incorrect-selection');
+      }
+    });
+  });
+
+  // Calculate and display the score
+  let score = (correctAnswers / totalQuestions) * 100;
+  displayScore(score, correctAnswers, totalQuestions);
+}
+
+  function displayScore(score, correctAnswers, totalQuestions) {
+    let scoreDisplay = document.getElementById('scoreDisplay');
+    if (!scoreDisplay) {
+      scoreDisplay = document.createElement('div');
+      scoreDisplay.id = 'scoreDisplay';
+      // Insert the score display at the beginning of the student-mode div
+      let studentMode = document.getElementById('student-mode');
+      studentMode.insertBefore(scoreDisplay, studentMode.firstChild);
+    }
+    
+    scoreDisplay.innerHTML = `
+      <div class="alert alert-info" role="alert">
+        Score: ${score.toFixed(2)}% (${correctAnswers} / ${totalQuestions} questions)
+      </div>
+    `;
+  }
+  /* 
+
+  ==========================================================. Teacher. ==========================================================
+
+  */
+
+function generateAnswerId(questionNumber, option) {
+  return `q${questionNumber}_${option}`;
+}
+
+function teacherRow_123_template(questionNumber, answer) {
+  const options = ['①', '②', '③', '④', '⑤'];
+  return `
+    <tr>
+      <th><p>${questionNumber}</p></th>
+      ${options.map(option => `
+        <td class="clickable ${answer.includes(option) ? 'selected' : ''}" 
+            onclick="toggleAnswer(${questionNumber - 1}, '${option}')" 
+            id="${generateAnswerId(questionNumber, option)}">${option}</td>
+      `).join('')}
+    </tr>
+  `;
+}
+
+function teacherRow_ABC_template(questionNumber, answer) {
+  const options = ['Ⓐ', 'Ⓑ', 'Ⓒ', 'Ⓓ', 'Ⓔ'];
+  return `
+    <tr>
+      <th><p>${questionNumber}</p></th>
+      ${options.map(option => `
+        <td class="clickable ${answer.includes(option) ? 'selected' : ''}" 
+            onclick="toggleAnswer(${questionNumber - 1}, '${option}')" 
+            id="${generateAnswerId(questionNumber, option)}">${option}</td>
+      `).join('')}
+    </tr>
+  `;
+}
+
+function teacherRow_SAQ_template(questionNumber, answer) {
+  return `
+    <tr>
+      <th><p>${questionNumber}</p></th>
+      <td colspan="5">
+        <input type="text" class="form-control answer-input" value="${answer}" 
+                onchange="updateAnswer(${questionNumber - 1}, this.value)">
+      </td>
+    </tr>
+  `;
+}
+
+function generateTeacherRows(numQuestions, isNewGeneration = false) {
+  numQuestions = parseInt(numQuestions, 10);
+  if (isNaN(numQuestions) || numQuestions <= 0) {
+    alert("Please enter a valid number of questions.");
+    return;
+  }
+
+  const currentLength = template_answerMETA.length;
+  
+  if (numQuestions > currentLength) {
+    // Add new questions while preserving existing data
+    const lastQuestionNo = currentLength > 0 ? template_answerMETA[currentLength - 1].QuestionNo : 0;
+    for (let i = currentLength; i < numQuestions; i++) {
+      template_answerMETA.push({
+        QuestionNo: lastQuestionNo + i - currentLength + 1,
+        Answer: "",
+        Selected: "",
+        Score: 1,
+        Correct: false,
+        mode: "123" // Default mode, you can adjust this as needed
+      });
+    }
+  } else if (numQuestions < currentLength) {
+    // Remove excess questions
+    template_answerMETA = template_answerMETA.slice(0, numQuestions);
+  }
+
+  // Only update QuestionNo if it's a new generation
+  if (isNewGeneration) {
+    for (let i = 0; i < template_answerMETA.length; i++) {
+      template_answerMETA[i].QuestionNo = i + 1;
+    }
+  }
+
+  const tableBody = document.getElementById('teacher-omrTable');
+  tableBody.innerHTML = tableRowGenerator(template_answerMETA);
+  makeQuestionNumbersEditable();
+  refreshQuestionNumbers();
+}
+
+
+
+function toggleAnswer(index, answer) {
+  let currentAnswer = template_answerMETA[index].Answer;
+  if (currentAnswer.includes(answer)) {
+    template_answerMETA[index].Answer = currentAnswer.replace(answer, '');
+  } else {
+    template_answerMETA[index].Answer += answer;
+  }
+  template_answerMETA[index].Answer = [...new Set(template_answerMETA[index].Answer)].sort().join('');
+  refreshTeacherTable();
+}
+
+function updateAnswer(index, newAnswer) {
+  template_answerMETA[index].Answer = newAnswer;
+  refreshTeacherTable();
+}
+
+function refreshTeacherTable() {
+  const tableBody = document.getElementById('teacher-omrTable');
+  tableBody.innerHTML = tableRowGenerator(template_answerMETA);
+  makeQuestionNumbersEditable();
+  
+  // Add this new part to refresh onclick handlers
+  template_answerMETA.forEach((question, index) => {
+    const options = question.mode === "ABC" ? ['Ⓐ', 'Ⓑ', 'Ⓒ', 'Ⓓ', 'Ⓔ'] : ['①', '②', '③', '④', '⑤'];
+    options.forEach(option => {
+      const cellId = generateAnswerId(question.QuestionNo, option);
+      const cell = document.getElementById(cellId);
+      if (cell) {
+        cell.onclick = () => toggleAnswer(index, option);
+      }
+    });
+  });
+}
+
+function makeQuestionNumbersEditable() {
+  const questionNumbers = document.querySelectorAll('#teacher-omrTable th p');
+  questionNumbers.forEach((p, index) => {
+    p.innerHTML = `<span class="editable-question-number" contenteditable="true">${p.textContent.trim()}</span>`;
+    const editableSpan = p.querySelector('.editable-question-number');
+    
+    editableSpan.addEventListener('blur', function() {
+      updateQuestionNumber(index, this.textContent);
+    });
+    
+    editableSpan.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        this.blur();
+      }
+    });
+    
+    editableSpan.addEventListener('focus', function() {
+      const range = document.createRange();
+      range.selectNodeContents(this);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    });
+  });
+}
+
+
+function updateQuestionNumber(index, newNumber) {
+  newNumber = parseInt(newNumber, 10);
+  if (!isNaN(newNumber) && newNumber > 0) {
+    template_answerMETA[index].QuestionNo = newNumber;
+    for (let i = index + 1; i < template_answerMETA.length; i++) {
+      template_answerMETA[i].QuestionNo = ++newNumber;
+    }
+    refreshQuestionNumbers();
+    console.log(`Question numbers updated starting from index ${index}`);
+  } else {
+    console.log(`Invalid question number: ${newNumber}. Reverting to original.`);
+    refreshQuestionNumbers();
+  }
+}
+
+function refreshQuestionNumbers() {
+  const questionNumbers = document.querySelectorAll('#teacher-omrTable th p span');
+  const numberCounts = {};
+  
+  // Count occurrences of each question number
+  template_answerMETA.forEach(question => {
+    numberCounts[question.QuestionNo] = (numberCounts[question.QuestionNo] || 0) + 1;
+  });
+  
+  questionNumbers.forEach((span, index) => {
+    const questionNo = template_answerMETA[index].QuestionNo;
+    span.textContent = questionNo;
+    
+    // Highlight in red if the number is repeated
+    if (numberCounts[questionNo] > 1) {
+      span.style.color = 'red';
+    } else {
+      span.style.color = ''; // Reset to default color
+    }
+  });
+}
+
+function saveCurrentAsAnswer() {
+  loading.classList.remove('hide');
+  var answerMETA = [];
+  var questionNO = [];
+  var answers = [];
+  var scores = [];
+  var modes = [];
+  template_answerMETA.forEach((question, index) => {
+    questionNO.push(question.QuestionNo);
+    answers.push(question.Answer);
+    scores.push(question.Score);
+    modes.push(question.mode);
+  });
+  answerMETA.push(questionNO);
+  answerMETA.push(answers);
+  answerMETA.push(scores);
+  answerMETA.push(modes);
+  
+  console.log("Answer META:", answerMETA);
+  google.script.run.withSuccessHandler(() => loading.classList.add('hide')).setAnswers(answerMETA, "testName");
+}
+</script>
